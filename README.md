@@ -1,5 +1,8 @@
 # AI 报价工作台（AI Quote Workbench）
 
+**在线演示**：<https://ai-quote-app.onrender.com>
+（Render 免费实例，闲置后会休眠，首次打开约 30–60 秒；演示站未配置 LLM Key，默认走规则解析。）
+
 > **定位说明**：这是一个「AI 应用开发」方向的自测项目，不是客户交付项目。
 > 价目表、客户和订单都是虚构的，不连接任何真实业务系统。用途是：面试时
 > **有东西能当场演示**，并且每个数字都能指到代码、接口和数据库。
@@ -198,7 +201,7 @@ ai-quote-app/
 4. 刷新页面 → 最近报价仍在（SQLite）。
 5. 打开 `lib/price.ts` 和 `lib/llm.ts`，说明「模型只提取、代码才算钱」的分工。
 
-## 部署（Vercel + Turso）
+## 部署（Render / Vercel + Turso）
 
 本地使用 `node:sqlite`；线上配置两个环境变量后，`lib/db.ts` 会自动切换到
 Turso（SQLite 兼容的云数据库），接口代码不变。
@@ -206,19 +209,25 @@ Turso（SQLite 兼容的云数据库），接口代码不变。
 1. 用 GitHub 登录 [Turso](https://turso.tech)，创建一个数据库（建议选新加坡
    或东京区域），复制 Database URL（形如 `libsql://xxx.turso.io`）。
 2. 在数据库设置里创建一个 Token（或运行 `turso db tokens create <数据库名>`）。
-3. 在 [Vercel](https://vercel.com) 导入本仓库，添加环境变量：
+3. 在 Render 或 Vercel 导入本仓库，添加环境变量：
    - `TURSO_DATABASE_URL`
    - `TURSO_AUTH_TOKEN`
    - 可选：`LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`
 4. 点击 Deploy。首次请求会自动建表，历史记录随即可用。
+
+Render 的免费 Web Service 配置：
+
+- Build Command：`npm install && npm run build`
+- Start Command：`npm run start -- -p $PORT`
+- 实例类型：Free（0.1 CPU / 512 MB，闲置会休眠）
 
 > 公共演示站不建议配 `LLM_API_KEY`，避免额度被别人刷；不配 Key 时规则解析
 > 仍可完整演示。面试现场可以用本地 `.env.local` 展示大模型模式。
 
 ## 已知边界
 
-- 本地 SQLite 存在 `.data/quotes.db`，适合本机演示；部署到 Vercel 时按上面
-  的步骤配置 Turso 即可，无需改代码。
+- 本地 SQLite 存在 `.data/quotes.db`，适合本机演示；部署到 Render / Vercel
+  等无持久磁盘的平台时，按上面的步骤配置 Turso 即可，无需改代码。
 - 规则提取只覆盖内置的拉链、扣子、织带写法；真实业务应持续补规则或用模型。
 - 没有登录、权限、限流和审计；这是单用户演示项目。
 - 价目表、客户、订单均为虚构数据。
