@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke test
+        env:
+          BASE_URL: http://127.0.0.1:3100
+          QUOTE_DB_DIR: ${{ github.workspace }}/.data-ci
+        run: |
+          npm run start -- -p 3100 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:3100/api/quotes > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          npm run smoke

@@ -1,5 +1,7 @@
 # AI 报价工作台（AI Quote Workbench）
 
+[![CI](https://github.com/Hyxxt/ai-quote-app/actions/workflows/ci.yml/badge.svg)](https://github.com/Hyxxt/ai-quote-app/actions/workflows/ci.yml)
+
 **在线演示**：<https://ai-quote-app.onrender.com>
 （Render 免费实例，闲置后会休眠，首次打开约 30–60 秒；演示站未配置 LLM Key，默认走规则解析。）
 
