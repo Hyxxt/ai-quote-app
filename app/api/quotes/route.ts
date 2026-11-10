@@ -23,9 +23,9 @@ function wantsRuleMode(payload: unknown): boolean {
 }
 
 export async function GET() {
-  // node:sqlite 是同步驱动，显式标记请求时执行，避免被当作静态内容预渲染
+  // 数据库查询依赖请求时的环境变量，显式标记为请求时执行
   await connection();
-  return Response.json({ quotes: listQuotes(10) });
+  return Response.json({ quotes: await listQuotes(10) });
 }
 
 export async function POST(request: Request) {
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
   }
 
   const { quote, issues, hasBlocker } = priceQuote(extraction);
-  const id = saveQuote({
+  const id = await saveQuote({
     customer: quote.customer,
     total: quote.total,
     hasBlocker,

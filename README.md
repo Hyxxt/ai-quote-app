@@ -7,7 +7,7 @@
 把客户的微信口语询价，变成一张可核对的报价单：
 
 ```text
-客户原文 → 大模型提取结构化需求 → 价目表确定性核算 → 风险清单 → SQLite 存档
+客户原文 → 大模型提取结构化需求 → 价目表确定性核算 → 风险清单 → 数据库存档
 ```
 
 ## 为什么值得看
@@ -31,7 +31,7 @@ Prompt 设计、结构化输出、工具调用思路、AI 编程工具交付、�
 - 确定性报价：查价、算金额、MOQ 提示、色号校验
 - 三级问题清单：`【阻断】` / `【待确认】` / `【客户备注】`
 - 报价摘要一键复制
-- 最近 10 条报价存入 SQLite，点击可回看
+- 最近 10 条报价存入数据库，点击可回看
 - 无 Key 自动降级为规则解析，并在界面标注当前模式
 
 ## 技术栈
@@ -41,7 +41,7 @@ Prompt 设计、结构化输出、工具调用思路、AI 编程工具交付、�
 | 前端 | Next.js 16 App Router、React 19、TypeScript、Tailwind CSS 4 |
 | 后端 | Next.js Route Handlers（Node runtime） |
 | 大模型 | OpenAI 兼容 Chat Completions + JSON 模式 |
-| 数据库 | Node 内置 `node:sqlite`（无需原生扩展） |
+| 数据库 | 本地 `node:sqlite`（零配置）；线上 Turso（SQLite 兼容云数据库） |
 | 校验 | 服务端字段校验 + 价目表白名单 |
 
 ## 数据流
@@ -54,7 +54,7 @@ Route Handler（Node runtime）
    ├─ lib/llm.ts     调大模型 → JSON 提取；失败/无 Key 时回退
    ├─ lib/extract.ts 规则提取兜底（无第三方依赖）
    ├─ lib/price.ts   查价目表、算金额、收集风险项（确定性）
-   └─ lib/db.ts      node:sqlite 落库
+   └─ lib/db.ts      SQLite（本地）/ Turso（线上）落库
    ▼
 返回 { quote, issues, hasBlocker, mode }
 ```
@@ -157,7 +157,7 @@ ai-quote-app/
 │   ├── extract.ts            # 规则提取兜底
 │   ├── llm.ts                # 大模型提取 + JSON 校验
 │   ├── price.ts              # 确定性报价引擎
-│   ├── db.ts                 # node:sqlite 持久化
+│   ├── db.ts                 # SQLite / Turso 双后端持久化
 │   ├── format.ts             # 展示格式化
 │   └── types.ts              # 前后端共用领域类型
 ├── .env.example
@@ -181,10 +181,10 @@ ai-quote-app/
    解析失败、网络失败、没有 Key 都会降级到规则提取。降级不是隐藏错误，界面会
    明确标注当前模式，并把原因显示出来。
 
-4. **同步 SQLite 的预渲染陷阱**
-   `node:sqlite` 是同步驱动，如果 GET 接口直接查询，Next 可能在构建期就执行并
-   把结果静态化。`app/api/quotes/route.ts` 里先 `await connection()`，强制查询
-   发生在请求时。这是 Next 16 Cache Components 下的实际坑。
+4. **数据库访问的预渲染陷阱**
+   历史记录依赖运行时的环境变量和数据库。如果 GET 接口在构建期执行，结果会
+   被静态化。`app/api/quotes/route.ts` 里先 `await connection()`，强制查询发生
+   在请求时。这是 Next 16 Cache Components 下的实际坑。
 
 5. **报价快照不可变**
    每条记录存原文、提取结果、报价和问题清单的完整 JSON。价格表以后改了，
@@ -198,10 +198,27 @@ ai-quote-app/
 4. 刷新页面 → 最近报价仍在（SQLite）。
 5. 打开 `lib/price.ts` 和 `lib/llm.ts`，说明「模型只提取、代码才算钱」的分工。
 
+## 部署（Vercel + Turso）
+
+本地使用 `node:sqlite`；线上配置两个环境变量后，`lib/db.ts` 会自动切换到
+Turso（SQLite 兼容的云数据库），接口代码不变。
+
+1. 用 GitHub 登录 [Turso](https://turso.tech)，创建一个数据库（建议选新加坡
+   或东京区域），复制 Database URL（形如 `libsql://xxx.turso.io`）。
+2. 在数据库设置里创建一个 Token（或运行 `turso db tokens create <数据库名>`）。
+3. 在 [Vercel](https://vercel.com) 导入本仓库，添加环境变量：
+   - `TURSO_DATABASE_URL`
+   - `TURSO_AUTH_TOKEN`
+   - 可选：`LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL`
+4. 点击 Deploy。首次请求会自动建表，历史记录随即可用。
+
+> 公共演示站不建议配 `LLM_API_KEY`，避免额度被别人刷；不配 Key 时规则解析
+> 仍可完整演示。面试现场可以用本地 `.env.local` 展示大模型模式。
+
 ## 已知边界
 
-- SQLite 存在本地 `.data/quotes.db`，适合本机演示；部署到 Vercel 等无持久磁盘
-  的环境需要换成 Postgres / Turso / Neon。
+- 本地 SQLite 存在 `.data/quotes.db`，适合本机演示；部署到 Vercel 时按上面
+  的步骤配置 Turso 即可，无需改代码。
 - 规则提取只覆盖内置的拉链、扣子、织带写法；真实业务应持续补规则或用模型。
 - 没有登录、权限、限流和审计；这是单用户演示项目。
 - 价目表、客户、订单均为虚构数据。
