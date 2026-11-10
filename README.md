@@ -40,6 +40,12 @@ Prompt 设计、结构化输出、工具调用思路、AI 编程工具交付、�
 - 最近 10 条报价存入数据库，点击可回看
 - 无 Key 自动降级为规则解析，并在界面标注当前模式
 
+## 界面
+
+| 工作台 | 报价结果 |
+|---|---|
+| ![报价工作台](docs/screenshots/quote-home.png) | ![报价结果](docs/screenshots/quote-result.png) |
+
 ## 技术栈
 
 | 层 | 选型 |
